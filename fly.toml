@@ -6,6 +6,10 @@
 app = 'lexchange'
 primary_region = 'iad'
 
+[mounts]
+destination = '/pb/pb_data'
+source = 'pb_data'
+
 [build]
 
 [http_service]
