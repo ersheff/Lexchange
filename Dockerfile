@@ -8,7 +8,7 @@ RUN apk add --no-cache \
     openssh
 
 ADD https://github.com/pocketbase/pocketbase/releases/download/v${PB_VERSION}/pocketbase_${PB_VERSION}_linux_amd64.zip /tmp/pb.zip
-RUN unzip /tmp/pb.zip -d /pb/
+RUN unzip /tmp/pb.zip -d /pb/ && ls -l /pb/
 
 COPY pb_public /pb/pb_public
 
