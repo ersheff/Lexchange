@@ -1,0 +1,236 @@
+<div x-data="{
+  currentForm: 'repertoire',
+  resType: 'link',
+  easyMDE: null,
+  ...pillManagement('inst'),
+  ...pillManagement('os'),
+  ...pillManagement('software'),
+  ...pillManagement('hardware'),
+  ...pillManagement('tags'),
+  init() {
+    this.easyMDE = new EasyMDE({
+      element: $refs.mdEditor
+    });
+    this.fetchTags();
+    this.fetchInst();
+    this.fetchOs();
+    this.fetchSoftware();
+    this.fetchHardware();
+  },
+  async submit(form) {
+    $refs.submitButton.disabled = true;
+    try {
+      if (this.currentForm === 'repertoire') {
+        if (this.selectedOs.size === 0) {
+          $store.toast.notify('Must select at least one (1) Operating System option.');
+          return;
+        }
+        if (this.selectedSoftware.size === 0) {
+          $store.toast.notify('Must select at least one (1) Software option.');
+          return;
+        }
+        const fields = {
+          inst: Array.from(this.selectedInst),
+          os: Array.from(this.selectedOs),
+          software: Array.from(this.selectedSoftware),
+          hardware: Array.from(this.selectedHardware),
+          notes: this.easyMDE.value()
+        }
+        await createItem(form, 'repertoire', fields);
+      }
+      if (this.currentForm === 'resource') {
+        const newTagIds = [];
+        if (form.newTags.value) {
+          const newTags = form.newTags.value.split(',').map(t => t.trim()).filter(Boolean);
+          for (const tagName of newTags) {
+            try {
+              const tag = await pb.collection('tags').create({ name: tagName });
+              newTagIds.push(tag.id);
+            } catch(err) {
+              $store.toast.notify('Failed to create one or more new tags.');
+            }
+          }
+        }
+        if (!form.link.value && !this.easyMDE.value()) {
+          $store.toast.notify('Must provide either link or full text content.');
+          return;
+        }
+        const fields = {
+          tags: [...this.selectedTags, ...newTagIds]
+        }
+        if (!fields.tags) {
+          $store.toast.notify('Must create or select at least one (1) Tag.');
+          return;
+        }
+        if (this.resType != 'link') {
+          form.link.value = '';
+          fields.full_text = this.easyMDE.value();
+        }
+        await createItem(form, 'resources', fields);
+      } 
+    } catch(err) {
+      $store.toast.notify(err.message);
+    } finally {
+      $refs.submitButton.disabled = false;
+    }
+  }
+}">
+
+  <h2>Submit</h2>
+
+  <label for="submission-type">Submission Type</label>
+  <select @change="currentForm = $el.value">
+    <option value="repertoire">Repertoire</option>
+    <option value="resource">Resource</option>
+  </select>
+
+  <form x-show="currentForm === 'repertoire'" x-ref="repForm" @submit.prevent="submit($el)">
+    <div>
+      <label>
+        Title
+        <input type="text" name="title" required>
+      </label>
+    </div>
+    <div>
+      <label>
+        Duration
+        <input class="duration-input" type="text" name="duration" placeholder="m:ss" required>
+      </label>
+    </div>
+    <div>
+      <label>
+        Composer
+        <input type="text" name="first_name" placeholder="First name" required>
+        <input type="text" name="last_name" placeholder="Last name" required>
+      </label>
+    </div>
+    <div>
+      <label>
+        Email
+        <input type="email" name="email" required>
+      </label>
+    </div>
+    <div>
+      <label>
+        Link to Assets
+        <input type="url" name="link" required>
+      </label>
+    </div>
+    <div>
+      <label>
+        Difficulty
+        <select name="difficulty" required>
+          <option value=""></option>
+          <option value="1">1 (Novice)</option>
+          <option value="2">2 (Intermediate)</option>
+          <option value="3">3 (Advanced)</option>
+        </select>
+      </label>
+    </div>
+    <div>
+      <label>
+        No. of Parts
+        <input type="number" name="parts" min="1" required>
+      </label>
+    </div>
+    <div>
+      <label>
+        Maximum Performers
+        <input type="number" name="max_perf" min="1">
+        <span>(leave blank if N/A)</span>
+      </label>
+    </div>
+    <div class="pill-container">
+      <label for="inst">Instrumentation&nbsp;</label>
+      <template x-for="i in inst" :key="i.id">
+        <button type="button" class="pill-button" :class="{ 'inactive': !instIsSelected(i.id) }" x-text="i.name"
+          @click="addInst(i.id)"></button>
+      </template>
+      <input type="hidden" name="inst">
+    </div>
+    <div class="pill-container">
+      <label for="os">Operating System(s)&nbsp;</label>
+      <template x-for="o in os" :key="o.id">
+        <button type="button" class="pill-button" :class="{ 'inactive': !osIsSelected(o.id) }" x-text="o.name"
+          @click="addOs(o.id)"></button>
+      </template>
+      <input type="hidden" name="os">
+    </div>
+    <div class="pill-container">
+      <label for="software">Software&nbsp;</label>
+      <template x-for="s in software" :key="s.id">
+        <button type="button" class="pill-button" :class="{ 'inactive': !softwareIsSelected(s.id) }" x-text="s.name"
+          @click="addSoftware(s.id)"></button>
+      </template>
+      <input type="hidden" name="software">
+    </div>
+    <div class="pill-container">
+      <label for="hardware">Hardware&nbsp;</label>
+      <template x-for="h in hardware" :key="h.id">
+        <button type="button" class="pill-button" :class="{ 'inactive': !hardwareIsSelected(h.id) }" x-text="h.name"
+          @click="addHardware(h.id)"></button>
+      </template>
+      <input type="hidden" name="hardware">
+    </div>
+    <div>
+      <label>
+        Visuals
+        <input type="checkbox" name="visuals">
+      </label>
+    </div>
+    <label>
+      Notes
+      <input type="text" name="notes" hidden>
+    </label>
+  </form>
+
+  <form x-show="currentForm === 'resource'" x-ref="resForm" @submit.prevent="submit($el)">
+    <div>
+      <label>
+        Title <br>
+        <input type=" text" name="title" required>
+      </label>
+    </div>
+    <div>
+      <label>
+        Description <br>
+        <textarea name="description" required></textarea>
+      </label>
+    </div>
+    <div>
+      <label for="tags">Tags</label>
+      <br>
+      <div class="pill-container">
+        <template x-for="tag in tags" :key="tag.id">
+          <button type="button" class="pill-button" :class="{ 'inactive': !tagsIsSelected(tag.id) }" x-text="tag.name"
+            @click="addTags(tag.id); dirty = true;"></button>
+        </template>
+        <input type="hidden" name="tags">
+      </div>
+    </div>
+    <div>
+      <label for="newTags">Create new tags if needed (comma separated for multiple)</label><br>
+      <input type="text" name="newTags" placeholder="tag1, tag2, tag3, etc.">
+    </div>
+    <div>
+      <label for="resourceType">Resource Type</label>
+      <br>
+      <select @change="resType = $el.value">
+        <option value="link">Link to external site</option>
+        <option value="full">Submit full text</option>
+      </select>
+    </div>
+    <div x-show="resType === 'link'">
+      <input type="url" name="link" placeholder="https://example.com">
+    </div>
+    <input type="text" name="full_text" hidden>
+  </form>
+
+  <div x-show="currentForm === 'repertoire' || resType === 'full'">
+    <textarea x-ref="mdEditor"></textarea>
+  </div>
+
+  <button class="big-button" type="button" x-ref="submitButton"
+    @click="currentForm === 'repertoire' ? $refs.repForm.requestSubmit() : $refs.resForm.requestSubmit()">Submit</button>
+
+</div>

@@ -1,0 +1,96 @@
+<div x-data="{
+  ...collectionManagement('resources'),
+  ...pillManagement('tags'),
+  get options() {
+    return {
+      expand: 'tags',
+      filter: this.filter,
+    }
+  },
+  dirty: false,
+  applyFilter(e) {
+    const values = Object.fromEntries(new FormData(e.target))
+    const titleFilter = values.title ? `title ${values.titleOp} '${values.title}'` : '';
+    const tagsFilter = this.createTagsFilter();
+    const filterString = titleFilter && tagsFilter ? `${titleFilter} && ${tagsFilter}` : titleFilter || tagsFilter;
+    this.setFilter(filterString);
+    this.dirty = false;
+  },
+  singleFilter(tag) {
+    this.setFilter(this.setOneTags(tag.id));
+    $refs.filterForm.reset();
+    this.expanded = true;
+    $store.toast.notify(`Showing all resources tagged '${tag.name}'.`);
+  },
+  resetFilter() {
+    this.dirty = false;
+    this.clearSelectedTags();
+    this.clearFilter();
+    $refs.filterForm.reset();
+  },
+  init() {
+    this.fetchTags();
+    if ($store.route.savedTag) {
+      this.singleFilter($store.route.savedTag)
+      $store.route.savedTag = null;
+    } else this.fetchItems();
+  }
+ }">
+
+  <h2>Resources</h2>
+
+  <div class="filter">
+    <button @click="expanded = !expanded"><span x-text="expanded ? '△' : '▽'"></span> Filter Options</button>
+  </div>
+
+  <div x-cloak x-show="expanded" x-collapse>
+    <form @submit.prevent="applyFilter($event)" x-ref="filterForm">
+      <div>
+        <label for="title">Title</label>
+        <select name="titleOp" @change="if ($refs.title.value) dirty = true">
+          <option value="~">Contains</option>
+          <option value="=">Equals</option>
+        </select>
+        <input type="text" name="title" x-ref="title" @input="dirty = true">
+      </div>
+      <div class="pill-container">
+        <label for="tags">Tags&nbsp;</label>
+        <select @change="setTagsOpComb($el.value)">
+          <option value="&&">All</option>
+          <option value="||">Any</option>
+          <option value="!~">Not</option>
+        </select>
+        &nbsp;
+        <template x-for="tag in tags" :key="tag.id">
+          <button type="button" class="pill-button" :class="{ 'inactive': !tagsIsSelected(tag.id) }" x-text="tag.name"
+            @click="addTags(tag.id); dirty = true;"></button>
+        </template>
+      </div>
+      <button class="big-button" type="submit" :disabled="!dirty">Apply</button>
+      <button class="big-button" type="button" @click="resetFilter">Reset</button>
+    </form>
+  </div>
+
+  <hr>
+
+  <template x-for="item in items" :key="item.id">
+    <div>
+      <h3><a :href="`?page=res_item&id=${item.id}`" x-text="item.title" @click.prevent="route($el.href)"></a></h3>
+      <p x-text="item.description"></p>
+      <div class="pill-container">
+        <label for="tag-buttons">Tags&nbsp;</label>
+        <template x-for="tag in item.expand.tags" :key="tag.id">
+          <button class="pill-button" x-text="tag.name" @click="singleFilter(tag)"></button>
+        </template>
+      </div>
+    </div>
+  </template>
+
+  <div class="paginate">
+    <label>
+      Page:
+      <input type="number" min="1" :value="page" :max="totalPages" @change="setPaginate($el.value, perPage)"><span
+        x-text="` / ${totalPages}`"></span>
+    </label>
+  </div>
+</div>

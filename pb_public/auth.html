@@ -1,0 +1,63 @@
+<style>
+  .auth-container {
+    display: flex;
+    gap: 20px;
+  }
+</style>
+
+<div x-data="{
+  async login(e) {
+    const values = Object.fromEntries(new FormData(e.target))
+    try {
+      await pb.collection('users').authWithPassword(values.email, values.password);
+      $store.toast.notify('Login successful.');
+      route('?page=repertoire');
+    } catch (err) {
+      $store.toast.notify(err.message === 'Failed to authenticate.' ? 'Invalid email or password.' : err.message);
+    }
+  }
+}">
+
+  <h2>Login/Register</h2>
+
+  <div class="auth-container">
+    <form @submit.prevent="login($event)">
+      <div>
+        <label>
+          Email <br>
+          <input type="email" name="email" required>
+        </label>
+      </div>
+      <div>
+        <label>
+          Password <br>
+          <input type="password" name="password" required>
+        </label>
+      </div>
+      <button type="submit">Login</button>
+    </form>
+
+    <form @submit.prevent="createItem($el, 'users')">
+      <div>
+        <label>
+          Email <br>
+          <input type="email" name="email" required>
+        </label>
+      </div>
+      <div>
+        <label>
+          Password <br>
+          <input type="password" name="password" required>
+        </label>
+      </div>
+      <div>
+        <label>
+          Confirm password <br>
+          <input type="password" name="passwordConfirm" required>
+        </label>
+      </div>
+      <button type="submit">Register</button>
+    </form>
+  </div>
+
+</div>

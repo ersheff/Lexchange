@@ -1,0 +1,47 @@
+<div x-data="{ ...initItemPage() }" x-init="fetchItem('repertoire')">
+  <template x-if="item">
+    <div>
+      <h2 x-text="item.title"></h2>
+      <p x-text="`Duration: ${decToColon(item.duration)}`"></p>
+      <p x-text="`Composer: ${item.first_name} ${item.last_name}`"></p>
+      <p x-text="`Email: ${item.email}`"></p>
+      <p><a :href="item.link">Website</a></p>
+      <h3>Ensemble Information</h3>
+      <p x-text="
+      `Difficulty: ${
+          item.difficulty === '1' ? '1 (Novice)' :
+          item.difficulty === '2' ? '2 (Intermediate)' :
+          item.difficulty === '3' ? '3 (Advanced)' : '' }`"></p>
+      <p x-text="`Parts: ${item.parts}`"></p>
+      <p x-text="`Maximum performers: ${item.max_perf === 999 ? 'any' : item.max_perf}`"></p>
+      <p>Instrumentation:</p>
+      <ul>
+        <template x-for="inst in item.expand.inst" :key="inst.id">
+          <li x-text="inst.name"></li>
+        </template>
+      </ul>
+      <h3>Technical Information</h3>
+      <p>Operating systems:</p>
+      <ul>
+        <template x-for="os in item.expand.os" :key="os.id">
+          <li x-text="os.name"></li>
+        </template>
+      </ul>
+      <p>Software:</p>
+      <ul>
+        <template x-for="software in item.expand.software" :key="software.id">
+          <li x-text="software.name"></li>
+        </template>
+      </ul>
+      <p>Additional hardware:</p>
+      <ul>
+        <template x-for="hardware in item.expand.hardware" :key="hardware.id">
+          <li x-text="hardware.name"></li>
+        </template>
+      </ul>
+      <p x-text="`Visuals: ${item.visuals === true ? 'Yes' : 'No'}`"></p>
+      <h3>Notes</h3>
+      <p x-html="marked.parse(item.notes)"></p>
+    </div>
+  </template>
+</div>

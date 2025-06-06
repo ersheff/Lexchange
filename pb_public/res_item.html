@@ -1,0 +1,25 @@
+<div x-data="{
+  ...initItemPage(),
+  tagRoute(tag) {
+    $store.route.savedTag = tag;
+    route('?page=resources');
+  } }" x-init="fetchItem('resources')">
+  <template x-if="item">
+    <div>
+      <h2 x-text="item.title"></h2>
+      <p x-text="item.description"></p>
+      <div class="pill-container">
+        <label for="tag-buttons">Tags&nbsp;</label>
+        <template x-for="tag in item.expand.tags" :key="tag.id">
+          <button class="pill-button" x-text="tag.name" @click="tagRoute(tag)"></button>
+        </template>
+      </div>
+      <template x-if="item.link">
+        <a :href="item.link">Website</a>
+      </template>
+      <template x-if="item.full_text">
+        <p x-html="marked.parse(item.full_text)"></a>
+      </template>
+    </div>
+  </template>
+</div>
