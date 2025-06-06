@@ -84,122 +84,119 @@
     <option value="resource">Resource</option>
   </select>
 
+  <p>Fields marked with * are required.</p>
+  <p x-show="currentForm === 'repertoire'">If selecting "Other" in any category, include clarifying details in the Notes
+    section.
+  </p>
+
+  <hr>
+
   <form x-show="currentForm === 'repertoire'" x-ref="repForm" @submit.prevent="submit($el)">
     <div>
-      <label>
-        Title
-        <input type="text" name="title" required>
-      </label>
+      <label for="title">Title</label><span> *</span><br>
+      <input type="text" name="title" required>
     </div>
     <div>
-      <label>
-        Duration
-        <input class="duration-input" type="text" name="duration" placeholder="m:ss" required>
-      </label>
+      <label for="duration">Duration</label><span> * (if variable, enter an average and provide details in
+        Notes)</span><br>
+      <input class="duration-input" type="text" name="duration" placeholder="m:ss" required>
     </div>
     <div>
-      <label>
-        Composer
-        <input type="text" name="first_name" placeholder="First name" required>
-        <input type="text" name="last_name" placeholder="Last name" required>
-      </label>
+      <label for="composer">Composer</label><span> * (if multiple, enter a primary contact and provide details in
+        Notes)</span><br>
+      <input type="text" name="first_name" placeholder="First name" required>
+      <input type="text" name="last_name" placeholder="Last name" required>
     </div>
     <div>
-      <label>
-        Email
-        <input type="email" name="email" required>
-      </label>
+      <label for="email">Email</label><span> *</span><br>
+      <input type="email" name="email" required>
     </div>
     <div>
-      <label>
-        Link to Assets
-        <input type="url" name="link" required>
-      </label>
+      <label>Link to All Assets</label><span> * (scores, files, etc.)</span><br>
+      <input type="url" name="link" required>
     </div>
     <div>
-      <label>
-        Difficulty
-        <select name="difficulty" required>
-          <option value=""></option>
-          <option value="1">1 (Novice)</option>
-          <option value="2">2 (Intermediate)</option>
-          <option value="3">3 (Advanced)</option>
-        </select>
-      </label>
+      <label for="difficulty">Difficulty</label><span> *</span><br>
+      <select name="difficulty" required>
+        <option value=""></option>
+        <option value="1">1 (Novice)</option>
+        <option value="2">2 (Intermediate)</option>
+        <option value="3">3 (Advanced)</option>
+      </select>
+      <em>
+        <p>General Recommendations:</p>
+        <ul>
+          <li>1 (Novice) &mdash; No notation reading skills required, minimal rehearsal.</li>
+          <li>2 (Intermediate) &mdash; Requires basic notation reading and/or rhythmic coordination, regular rehearsal.
+          </li>
+          <li>3 (Advanced) &mdash; Requires strong notation reading and/or rhythmic coordination, rigorous rehearsal.
+          </li>
+        </ul>
+      </em>
     </div>
     <div>
-      <label>
-        No. of Parts
-        <input type="number" name="parts" min="1" required>
-      </label>
+      <label for="parts">No. of Parts</label><span> *</span><br>
+      <input type="number" name="parts" min="1" required>
     </div>
     <div>
-      <label>
-        Maximum Performers
-        <input type="number" name="max_perf" min="1">
-        <span>(leave blank if N/A)</span>
-      </label>
+      <label>Maximum Performers (leave blank if N/A)</label><br>
+      <input type="number" name="max_perf" min="1">
     </div>
+    <div><label for="inst">Instrumentation (if applicable)</label></div>
     <div class="pill-container">
-      <label for="inst">Instrumentation&nbsp;</label>
       <template x-for="i in inst" :key="i.id">
         <button type="button" class="pill-button" :class="{ 'inactive': !instIsSelected(i.id) }" x-text="i.name"
           @click="addInst(i.id)"></button>
       </template>
       <input type="hidden" name="inst">
     </div>
+    <div><label for="os">Operating System(s)</label><span> *</span></div>
     <div class="pill-container">
-      <label for="os">Operating System(s)&nbsp;</label>
       <template x-for="o in os" :key="o.id">
         <button type="button" class="pill-button" :class="{ 'inactive': !osIsSelected(o.id) }" x-text="o.name"
           @click="addOs(o.id)"></button>
       </template>
       <input type="hidden" name="os">
     </div>
+    <div><label for="software">Software</label><span> *</span></div>
     <div class="pill-container">
-      <label for="software">Software&nbsp;</label>
       <template x-for="s in software" :key="s.id">
         <button type="button" class="pill-button" :class="{ 'inactive': !softwareIsSelected(s.id) }" x-text="s.name"
           @click="addSoftware(s.id)"></button>
       </template>
       <input type="hidden" name="software">
     </div>
+    <div><label for="hardware">Hardware (if applicable)</label></div>
     <div class="pill-container">
-      <label for="hardware">Hardware&nbsp;</label>
       <template x-for="h in hardware" :key="h.id">
         <button type="button" class="pill-button" :class="{ 'inactive': !hardwareIsSelected(h.id) }" x-text="h.name"
           @click="addHardware(h.id)"></button>
       </template>
       <input type="hidden" name="hardware">
+      <em>
+        <p>Assume laptops and/or personal mobile devices are standard.</p>
+      </em>
     </div>
     <div>
-      <label>
-        Visuals
-        <input type="checkbox" name="visuals">
-      </label>
+      <label>Visuals</label><br>
+      <input type="checkbox" name="visuals">
     </div>
-    <label>
-      Notes
-      <input type="text" name="notes" hidden>
-    </label>
   </form>
 
   <form x-show="currentForm === 'resource'" x-ref="resForm" @submit.prevent="submit($el)">
     <div>
-      <label>
-        Title <br>
-        <input type=" text" name="title" required>
-      </label>
+      <label>Title</label><span> *</span><br>
+      <input type=" text" name="title" required>
     </div>
     <div>
-      <label>
-        Description <br>
-        <textarea name="description" required></textarea>
-      </label>
+      <label>Description</label><span> *</span><br>
+      <textarea name="description" rows="10" cols="40" required></textarea>
+      <em>
+        <p>Provide a brief description. Full details should be included via link full text below.</p>
+      </em>
     </div>
     <div>
-      <label for="tags">Tags</label>
-      <br>
+      <label for="tags">Tags</label><span> *</span>
       <div class="pill-container">
         <template x-for="tag in tags" :key="tag.id">
           <button type="button" class="pill-button" :class="{ 'inactive': !tagsIsSelected(tag.id) }" x-text="tag.name"
@@ -209,24 +206,25 @@
       </div>
     </div>
     <div>
-      <label for="newTags">Create new tags if needed (comma separated for multiple)</label><br>
+      <label for="newTags">Create new tags if needed</label><span> (comma separated for multiple)</span><br>
       <input type="text" name="newTags" placeholder="tag1, tag2, tag3, etc.">
     </div>
     <div>
-      <label for="resourceType">Resource Type</label>
-      <br>
+      <label for="resourceType">Resource Type</label><br>
       <select @change="resType = $el.value">
         <option value="link">Link to external site</option>
         <option value="full">Submit full text</option>
       </select>
     </div>
     <div x-show="resType === 'link'">
+      <label>Link</label><span> *</span><br>
       <input type="url" name="link" placeholder="https://example.com">
     </div>
     <input type="text" name="full_text" hidden>
   </form>
 
   <div x-show="currentForm === 'repertoire' || resType === 'full'">
+    <label x-text="currentForm === 'repertoire' ? 'Notes' : 'Content'"></label><span> *</span><br>
     <textarea x-ref="mdEditor"></textarea>
   </div>
 

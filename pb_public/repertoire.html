@@ -94,7 +94,7 @@
 
   <h2>Repertoire</h2>
 
-  <div class="filter">
+  <div>
     <button @click="expanded = !expanded"><span x-text="expanded ? '△' : '▽'"></span> Filter Options</button>
   </div>
 
@@ -227,6 +227,12 @@
         </template>
       </template>
     </div>
+
+    <label>
+      Page
+      <input type="number" min="1" :value="page" :max="totalPages" @change="setPaginate($el.value, perPage)"><span
+        x-text="` / ${totalPages}`"></span>
+    </label>
   </form>
 
   <hr>
@@ -289,11 +295,4 @@
     </template>
   </table>
 
-  <div class="paginate">
-    <label>
-      Page:
-      <input type="number" min="1" :value="page" :max="totalPages" @change="setPaginate($el.value, perPage)"><span
-        x-text="` / ${totalPages}`"></span>
-    </label>
-  </div>
 </div>

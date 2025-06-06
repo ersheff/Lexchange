@@ -15,7 +15,7 @@
         </template>
       </div>
       <template x-if="item.link">
-        <a :href="item.link">Website</a>
+        <p><a :href="item.link">Website</a></p>
       </template>
       <template x-if="item.full_text">
         <p x-html="marked.parse(item.full_text)"></a>

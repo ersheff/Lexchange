@@ -51,7 +51,7 @@
         sort: 'title',
         filter: '',
         page: 1,
-        perPage: 20,
+        perPage: col === 'repertoire' ? 20 : 5,
         totalPages: null,
         async fetchItems() {
           const list = await pb.collection(col).getList(this.page, this.perPage, this.options);
@@ -269,12 +269,7 @@
       max-width: 600px;
     }
 
-    .filter-and-search {
-      display: flex;
-      justify-content: space-between;
-    }
-
-    form div {
+    form>div {
       margin: 10px 0;
     }
 
@@ -284,8 +279,17 @@
       font-size: 0.75rem;
     }
 
+    textarea {
+      font-family: 'Times New Roman', Times, serif;
+    }
+
     input[type="number"] {
       width: 6ch;
+    }
+
+    input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
     }
 
     .duration-input {
@@ -314,11 +318,6 @@
       align-items: center;
       gap: 1px;
       row-gap: 2px;
-    }
-
-    .paginate {
-      display: flex;
-      justify-content: flex-end;
     }
   </style>
 

@@ -39,7 +39,7 @@
 
   <h2>Resources</h2>
 
-  <div class="filter">
+  <div>
     <button @click="expanded = !expanded"><span x-text="expanded ? '△' : '▽'"></span> Filter Options</button>
   </div>
 
@@ -73,6 +73,14 @@
 
   <hr>
 
+  <label>
+    Page:
+    <input type="number" min="1" :value="page" :max="totalPages" @change="setPaginate($el.value, perPage)"><span
+      x-text="` / ${totalPages}`"></span>
+  </label>
+
+  <hr>
+
   <template x-for="item in items" :key="item.id">
     <div>
       <h3><a :href="`?page=res_item&id=${item.id}`" x-text="item.title" @click.prevent="route($el.href)"></a></h3>
@@ -83,14 +91,8 @@
           <button class="pill-button" x-text="tag.name" @click="singleFilter(tag)"></button>
         </template>
       </div>
+      <hr>
     </div>
   </template>
 
-  <div class="paginate">
-    <label>
-      Page:
-      <input type="number" min="1" :value="page" :max="totalPages" @change="setPaginate($el.value, perPage)"><span
-        x-text="` / ${totalPages}`"></span>
-    </label>
-  </div>
 </div>
