@@ -6,11 +6,11 @@
 app = 'lexchange'
 primary_region = 'iad'
 
+[build]
+
 [mounts]
 destination = '/pb/pb_data'
 source = 'pb_data'
-
-[build]
 
 [http_service]
 internal_port = 8090
