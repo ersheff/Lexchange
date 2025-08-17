@@ -4,6 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">
   <script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@15.0.12/lib/marked.umd.min.js"></script>
@@ -12,7 +13,8 @@
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <script src="pocketbase.umd.js"></script>
   <script>
-    const pb = new PocketBase("https://lexchange.fly.dev");
+    // const pb = new PocketBase("https://lexchange.fly.dev");
+    const pb = new PocketBase("http://127.0.0.1:8090");
 
     pb.authStore.onChange(() => {
       Alpine.store('auth').update();
@@ -43,113 +45,102 @@
 
     //
 
-    function collectionManagement(col) {
-      return {
-        expanded: false,
-        items: [],
-        order: '+',
-        sort: 'title',
-        filter: '',
-        page: 1,
-        perPage: col === 'repertoire' ? 20 : 5,
-        totalPages: null,
-        async fetchItems() {
-          const list = await pb.collection(col).getList(this.page, this.perPage, this.options);
+    class CollectionManager {
+      constructor(col) {
+        this._col = col;
+        this.items = [];
+        this._order = '+';
+        this._sort = 'title';
+        this.filter = '';
+        this.page = 1;
+        this.perPage = this._col === 'repertoire' ? 20 : 5;
+        this.totalPages = null;
+      }
+      get options() {
+        return {
+          sort: `${this._order}${this._sort}`,
+          filter: this.filter,
+          expand: this._col === 'repertoire' ? 'inst,os,software,hardware' : 'tags',
+        };
+      }
+      set sort(newSort) {
+        if (this._sort === newSort) {
+          this._order = this._order === '+' ? '-' : '+';
+        } else {
+          this._sort = newSort;
+          this._order = '+';
+        }
+      }
+      get sort() {
+        return this._sort;
+      }
+      get order() {
+        return this._order;
+      }
+      async fetchItems() {
+        try {
+          const list = await pb.collection(this._col).getList(this.page, this.perPage, this.options);
           this.totalPages = list.totalPages;
           this.items = list.items;
-        },
-        setFilter(newFilter) {
-          this.filter = newFilter;
-          this.fetchItems(col);
-          Alpine.store('toast').notify(`Filter applied.`);
-        },
-        clearFilter() {
-          this.filter = '';
-          this.fetchItems(col);
-          Alpine.store('toast').notify(`Filter cleared.`);
-        },
-        setSort(newSort) {
-          if (this.sort === newSort) {
-            this.order = this.order === '+' ? '-' : '+';
-          } else {
-            this.sort = newSort;
-            this.order = '+';
-          }
-          this.fetchItems(col);
-        },
-        setPaginate(page, perPage) {
-          this.page = page;
-          this.perPage = perPage;
-          this.fetchItems(col);
-        },
-        resetAll() {
-          this.order = '+';
-          this.sort = 'title';
-          this.filter = '';
-          this.page = 1;
-          this.perPage = 20;
-          this.fetchItems(col);
+        } catch (err) {
+          Alpine.store('toast').notify(`Error fetching '${this._col}' items.`);
         }
       }
     }
 
-    function pillManagement(col) {
-      const Cap = capitalize(col);
-      return {
-        [col]: [],
-        [`${col}Op`]: '~',
-        [`${col}Comb`]: '&&',
-        [`set${Cap}OpComb`](v) {
-          this.dirty = true;
-          this[`${col}Comb`] = v === '!~' ? '&&' : v;
-          this[`${col}Op`] = v !== '!~' ? '~' : v;
-        },
-        [`selected${Cap}`]: new Set(),
-        [`add${Cap}`](id) {
-          const set = this[`selected${Cap}`];
-          if (set.has(id)) set.delete(id);
-          else set.add(id);
-        },
-        [`clearSelected${Cap}`]() {
-          this[`selected${Cap}`].clear();
-        },
-        [`${col}IsSelected`](id) {
-          return this[`selected${Cap}`].has(id);
-        },
-        [`setOne${Cap}`](id) {
-          const set = this[`selected${Cap}`];
-          set.clear();
-          set.add(id);
-          return `${col} ~ '${id}'`;
-        },
-        [`create${Cap}Filter`]() {
-          const filters = [];
-          const set = this[`selected${Cap}`];
-          const op = this[`${col}Op`];
-          const comb = this[`${col}Comb`];
-          for (const id of set) {
-            filters.push(`${col} ${op} '${id}'`);
-          }
-          const filterString = filters.join(` ${comb} `);
-          if (filterString.length) return `(${filterString})`;
-          return '';
-        },
-        async [`fetch${Cap}`]() {
-          try {
-            if (this[`${col}`].length > 0) return;
-            this[`${col}`] = await pb.collection(col).getFullList({
-              sort: '+name'
-            });
-          } catch (err) {
-            Alpine.store('toast').notify(`Error fetching ${col} collection.`);
-          }
+    class Attributes {
+      constructor(col) {
+        this._col = col;
+        this.items = [];
+      }
+      async fetchItems() {
+        try {
+          this.items = await pb.collection(this._col).getFullList({
+            sort: '+name'
+          });
+        } catch (err) {
+          Alpine.store('toast').notify(`Error fetching '${this._col}' items.`);
         }
       }
     }
 
-    function capitalize(str) {
-      return str.charAt(0).toUpperCase() + str.slice(1);
+    class AttributeManager extends Attributes {
+      constructor(col) {
+        super(col);
+        this._op = '~';
+        this._comb = '&&';
+      }
+      set opComb(v) {
+        this._op = v !== '!~' ? '~' : v;
+        this._comb = v === '!~' ? '&&' : v;
+      }
+      createFilterString(ids) {
+        const filters = [];
+        for (const id of ids) {
+          filters.push(`${this._col} ${this._op} '${id}'`);
+        }
+        const filterString = filters.join(` ${this._comb} `);
+        if (filterString.length) return `(${filterString})`;
+        return '';
+      }
     }
+
+    class ItemPage {
+      constructor(col) {
+        this._col = col;
+        this.item = null;
+      }
+      async fetchItem() {
+        const params = new URLSearchParams(window.location.search);
+        const id = params.get('id');
+        if (!id) return;
+        this.item = await pb.collection(this._col).getOne(id, {
+          expand: 'inst,os,software,hardware,tags'
+        });
+      }
+    }
+
+    //
 
     function decToColon(dec) {
       const minutes = Math.floor(dec);
@@ -173,43 +164,20 @@
       return Number((minutes + seconds / 60).toFixed(2));
     }
 
-    function initItemPage() {
-      return {
-        item: null,
-        async fetchItem(col) {
-          const params = new URLSearchParams(window.location.search);
-          const id = params.get('id');
-          if (!id) return;
-          this.item = await pb.collection(col).getOne(id, {
-            expand: 'inst,os,software,hardware,tags'
-          });
-        }
-      }
-    }
-
-    async function createItem(form, col, fields) {
+    async function createItem(col, values) {
       try {
-        const partialItem = Object.fromEntries(new FormData(form));
-        const item = {
-          ...partialItem,
-          ...fields
-        };
         if (col === 'repertoire') {
-          item.duration = colonToDec(item.duration);
-          if (item.max_perf === '') {
-            item.max_perf = 999;
+          values.duration = colonToDec(values.duration);
+          if (values.max_perf === '') {
+            values.max_perf = 999;
           }
         }
-        const record = await pb.collection(col).create(item);
-        const msg = col === 'users' ? 'Registration successful.' : `${record.title} created successfully.`;
-        const newPage = col === 'users' ? 'repertoire' : col;
-        route(`?page=${newPage}`);
+        const record = await pb.collection(col).create(values);
+        const msg = `${record.title} created successfully.`;
         Alpine.store('toast').notify(msg);
+        route(`?page=${col}`);
       } catch (err) {
-        const msg = err?.response?.data?.email?.message === 'Value must be unique.' ?
-          'An account with this email already exists.' : (err?.response?.data?.password?.message || err?.response
-            ?.data?.passwordConfirm?.message || err.message);
-        Alpine.store('toast').notify(msg);
+        Alpine.store('toast').notify(err.message);
       }
     }
 
@@ -234,7 +202,7 @@
           }
           this._timeout = setTimeout(() => {
             this.open = false;
-          }, 3000);
+          }, 2000);
         }
       });
       Alpine.store('route', {
@@ -248,76 +216,84 @@
   </script>
 
   <style>
+    /* global styles */
     [x-cloak] {
       display: none !important;
     }
 
     body {
-      max-width: 800px;
-      margin: auto;
-      padding: 10px;
+      padding: 0;
+      /* removes default water.css padding */
     }
 
     header {
+      background-color: var(--background-body);
       position: sticky;
       top: 0;
-      background-color: #fff;
+      z-index: 1;
+    }
+
+    main,
+    nav,
+    .nav-divider {
+      padding: 0 10px;
     }
 
     img {
-      width: 100%;
       max-width: 600px;
     }
 
-    form>div {
-      margin: 10px 0;
+    label {
+      font-weight: bold;
     }
 
-    input,
-    select,
-    button {
-      font-size: 0.75rem;
-    }
-
-    textarea {
-      font-family: 'Times New Roman', Times, serif;
-    }
-
-    input[type="number"] {
-      width: 6ch;
-    }
-
-    input[type="checkbox"] {
-      width: 20px;
-      height: 20px;
-    }
-
+    input[type="number"],
     .duration-input {
       width: 6ch;
     }
 
-    .big-button {
-      font-size: 1rem;
+    .drawer {
+      margin: 12px 0;
     }
 
-    .pill-button {
-      border: 1px solid #aaa;
-      border-radius: 8px;
-      padding: 0.1rem 0.3rem;
-      background-color: rgb(216, 237, 255);
-    }
-
-    .pill-button.inactive {
-      opacity: 0.6;
-      border-color: transparent;
-    }
-
-    .pill-container {
+    .form-group {
       display: flex;
-      flex-wrap: wrap;
       align-items: center;
-      gap: 1px;
-      row-gap: 2px;
+      gap: 6px;
+      margin-bottom: 6px;
+
+      div {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      input,
+      select {
+        margin-right: 0;
+      }
+    }
+
+    .detail {
+      font-style: italic;
+      margin-top: 0px;
+    }
+
+    textarea {
+      max-width: 40ch;
+    }
+
+    select[multiple] {
+      margin-bottom: 12px;
+    }
+
+    @media (max-width: 440px) {
+      .form-group {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0;
+        margin-bottom: 0;
+      }
     }
   </style>
 
@@ -332,53 +308,96 @@
       $store.toast.notify('Logged out.');
     } }">
 
-    <style>
-      nav {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
 
-        a {
-          padding: 10px;
+    <style>
+      /* nav styling */
+      nav {
+        .small-title {
+          display: none;
+          margin: 0;
         }
 
-        .active {
-          background-color: #eee;
+        .nav-links {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 20px;
+
+          button {
+            margin: 0;
+            padding: 10px;
+          }
+
+          .active {
+            text-decoration: underline;
+          }
+        }
+      }
+
+      @media (max-width: 520px) {
+        nav {
+          display: flex;
+          gap: 10px;
+
+          .small-title {
+            display: block;
+          }
+
+          .nav-links {
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 10px;
+            padding: 0;
+          }
         }
       }
     </style>
 
     <nav x-ref="nav">
-      <a href="?page=repertoire" @click.prevent="route($el.href)"
-        :class="$store.route.currentPage === 'repertoire' ? 'active' : ''">Repertoire</a>
-      <a href="?page=resources" @click.prevent="route($el.href)"
-        :class="$store.route.currentPage === 'resources' ? 'active' : ''">Resources</a>
-      <a x-cloak x-show="!!$store.auth.user" href="?page=submit" @click.prevent="route($el.href)"
-        :class="$store.route.currentPage === 'submit' ? 'active' : ''">Submit</a>
-      <a href="?page=about" @click.prevent="route($el.href)"
-        :class="$store.route.currentPage === 'about' ? 'active' : ''">About</a>
-      <a x-cloak x-show="!$store.auth.user" href="?page=auth" @click.prevent="route($el.href)"
-        :class="$store.route.currentPage === 'auth' ? 'active' : ''">Login/Register</a>
-      <span x-cloak x-show="!!$store.auth.user" x-text="$store.auth.user?.email"></span>
-      <button x-cloak x-show="!!$store.auth.user" @click="logout">Logout</a>
+      <h1 class="small-title">Laptop Ensemble Exchange</h1>
+      <div class="nav-links">
+        <a href="?page=repertoire" @click.prevent="route($el.href)"
+          :class="$store.route.currentPage === 'repertoire' ? 'active' : ''">Repertoire</a>
+        <a href="?page=resources" @click.prevent="route($el.href)"
+          :class="$store.route.currentPage === 'resources' ? 'active' : ''">Resources</a>
+        <a x-cloak x-show="!!$store.auth.user" href="?page=submit" @click.prevent="route($el.href)"
+          :class="$store.route.currentPage === 'submit' ? 'active' : ''">Submit</a>
+        <a href="?page=about" @click.prevent="route($el.href)"
+          :class="$store.route.currentPage === 'about' ? 'active' : ''">About</a>
+        <a x-cloak x-show="!$store.auth.user" href="?page=auth" @click.prevent="route($el.href)"
+          :class="$store.route.currentPage === 'auth' ? 'active' : ''">Login</a>
+        <button x-cloak x-show="!!$store.auth.user" x-text="$store.auth.user?.email" @click="logout">Logout</button>
+      </div>
     </nav>
+
+    <div class="nav-divider">
+      <hr>
+    </div>
 
     <style>
       .toast {
-        background-color: #fff;
-        padding: 20px;
-        box-shadow: rgba(150, 150, 150, 0.2) 0px 8px 24px;
+        background-color: var(--background);
+        padding: 20px 40px;
+        box-shadow: rgba(0, 0, 0, 0.5) 0px 8px 24px;
       }
     </style>
 
-    <div x-cloak x-transition x-show="$store.toast.open" x-text="$store.toast.message"
-      x-anchor.bottom.offset.20="$refs.nav" class="toast"></div>
-
-    <hr>
+    <div x-cloak x-transition x-show="$store.toast.open" x-anchor.top="$refs.nav" x-text="$store.toast.message"
+      class="toast"></div>
 
   </header>
 
-  <main id="content"></main>
+  <main>
+    <style>
+      @media (max-width: 520px) {
+        .big-title {
+          display: none;
+        }
+      }
+    </style>
+    <h1 class="big-title">Laptop Ensemble Exchange</h1>
+    <div id="content"></div>
+  </main>
 
 </body>
 

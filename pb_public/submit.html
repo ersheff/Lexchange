@@ -2,71 +2,68 @@
   currentForm: 'repertoire',
   resType: 'link',
   easyMDE: null,
-  ...pillManagement('inst'),
-  ...pillManagement('os'),
-  ...pillManagement('software'),
-  ...pillManagement('hardware'),
-  ...pillManagement('tags'),
+  inst: new Attributes('inst'),
+  os: new Attributes('os'),
+  software: new Attributes('software'),
+  hardware: new Attributes('hardware'),
+  tags: new Attributes('tags'),
   init() {
     this.easyMDE = new EasyMDE({
       element: $refs.mdEditor
     });
-    this.fetchTags();
-    this.fetchInst();
-    this.fetchOs();
-    this.fetchSoftware();
-    this.fetchHardware();
+    this.inst.fetchItems();
+    this.os.fetchItems();
+    this.software.fetchItems();
+    this.hardware.fetchItems();
+    this.tags.fetchItems();
   },
-  async submit(form) {
+  async submit(e) {
     $refs.submitButton.disabled = true;
+    const formData = new FormData(e.target);
+    const values = Object.fromEntries(formData);
     try {
       if (this.currentForm === 'repertoire') {
-        if (this.selectedOs.size === 0) {
-          $store.toast.notify('Must select at least one (1) Operating System option.');
-          return;
-        }
-        if (this.selectedSoftware.size === 0) {
-          $store.toast.notify('Must select at least one (1) Software option.');
-          return;
-        }
-        const fields = {
-          inst: Array.from(this.selectedInst),
-          os: Array.from(this.selectedOs),
-          software: Array.from(this.selectedSoftware),
-          hardware: Array.from(this.selectedHardware),
-          notes: this.easyMDE.value()
-        }
-        await createItem(form, 'repertoire', fields);
+        const selectedInst = formData.getAll('inst');
+        if (selectedInst.length > 0) values.inst = selectedInst;
+        const selectedOs = formData.getAll('os');
+        if (selectedOs.length > 0) values.os = selectedOs;
+        const selectedSoftware = formData.getAll('software');
+        if (selectedSoftware.length > 0) values.software = selectedSoftware;
+        const selectedHardware = formData.getAll('hardware');
+        if (selectedHardware.length > 0) values.hardware = selectedHardware;
+        const notes = this.easyMDE.value();
+        if (notes) values.notes = notes;
+        await createItem('repertoire', values);
       }
       if (this.currentForm === 'resource') {
+        if (!values.link && !this.easyMDE.value()) {
+          $store.toast.notify('Must provide either link or full text content.');
+          return;
+        }
         const newTagIds = [];
-        if (form.newTags.value) {
-          const newTags = form.newTags.value.split(',').map(t => t.trim()).filter(Boolean);
-          for (const tagName of newTags) {
+        if (values.new_tags) {
+          const newTagNames = values.new_tags.split(',').map(t => t.trim()).filter(Boolean);
+          for (const tagName of newTagNames) {
             try {
-              const tag = await pb.collection('tags').create({ name: tagName });
-              newTagIds.push(tag.id);
+              const newTag = await pb.collection('tags').create({ name: tagName });
+              newTagIds.push(newTag.id);
             } catch(err) {
               $store.toast.notify('Failed to create one or more new tags.');
             }
           }
+          delete values.new_tags;
         }
-        if (!form.link.value && !this.easyMDE.value()) {
-          $store.toast.notify('Must provide either link or full text content.');
-          return;
-        }
-        const fields = {
-          tags: [...this.selectedTags, ...newTagIds]
-        }
-        if (!fields.tags) {
+        const selectedTags = formData.getAll('tags');
+        values.tags = [...selectedTags, ...newTagIds];
+        if (!values.tags.length) {
           $store.toast.notify('Must create or select at least one (1) Tag.');
           return;
         }
         if (this.resType != 'link') {
-          form.link.value = '';
-          fields.full_text = this.easyMDE.value();
+          delete values.link;
+          values.full_text = this.easyMDE.value();
         }
-        await createItem(form, 'resources', fields);
+        await createItem('resources', values);
       } 
     } catch(err) {
       $store.toast.notify(err.message);
@@ -78,157 +75,165 @@
 
   <h2>Submit</h2>
 
-  <label for="submission-type">Submission Type</label>
-  <select @change="currentForm = $el.value">
-    <option value="repertoire">Repertoire</option>
-    <option value="resource">Resource</option>
-  </select>
-
-  <p>Fields marked with * are required.</p>
-  <p x-show="currentForm === 'repertoire'">If selecting "Other" in any category, include clarifying details in the Notes
-    section.
+  <div class="form-group">
+    <label for="currentForm">Submission Type</label>
+    <div>
+      <input type="radio" name="currentForm" value="repertoire" @change="currentForm = $el.value" checked>
+      <span>Repertoire</span>
+      <input type="radio" name="currentForm" value="resource" @change="currentForm = $el.value">
+      <span>Resource</span>
+    </div>
+  </div>
+  <template x-if="currentForm === 'resource'">
+    <div class="form-group">
+      <label for="resourceType">Resource Type</label>
+      <div>
+        <input type="radio" name="resourceType" value="link" checked @change="resType = $el.value">
+        <span>External Link</span>
+        <input type="radio" name="resourceType" value="full" @change="resType = $el.value">
+        <span>Full Text</span>
+      </div>
+    </div>
+  </template>
+  <p>All fields are required unless otherwise indicated.</p>
+  <p x-show="currentForm === 'repertoire'">
+    If selecting "Other" in any field, please include clarifying details in the Notes section.
   </p>
 
   <hr>
 
-  <form x-show="currentForm === 'repertoire'" x-ref="repForm" @submit.prevent="submit($el)">
-    <div>
-      <label for="title">Title</label><span> *</span><br>
-      <input type="text" name="title" required>
-    </div>
-    <div>
-      <label for="duration">Duration</label><span> * (if variable, enter an average and provide details in
-        Notes)</span><br>
-      <input class="duration-input" type="text" name="duration" placeholder="m:ss" required>
-    </div>
-    <div>
-      <label for="composer">Composer</label><span> * (if multiple, enter a primary contact and provide details in
-        Notes)</span><br>
-      <input type="text" name="first_name" placeholder="First name" required>
-      <input type="text" name="last_name" placeholder="Last name" required>
-    </div>
-    <div>
-      <label for="email">Email</label><span> *</span><br>
-      <input type="email" name="email" required>
-    </div>
-    <div>
-      <label>Link to All Assets</label><span> * (scores, files, etc.)</span><br>
-      <input type="url" name="link" required>
-    </div>
-    <div>
-      <label for="difficulty">Difficulty</label><span> *</span><br>
-      <select name="difficulty" required>
-        <option value=""></option>
-        <option value="1">1 (Novice)</option>
-        <option value="2">2 (Intermediate)</option>
-        <option value="3">3 (Advanced)</option>
-      </select>
-      <em>
-        <p>General Recommendations:</p>
-        <ul>
-          <li>1 (Novice) &mdash; No notation reading skills required, minimal rehearsal.</li>
-          <li>2 (Intermediate) &mdash; Requires basic notation reading and/or rhythmic coordination, regular rehearsal.
-          </li>
-          <li>3 (Advanced) &mdash; Requires strong notation reading and/or rhythmic coordination, rigorous rehearsal.
-          </li>
-        </ul>
-      </em>
-    </div>
-    <div>
-      <label for="parts">No. of Parts</label><span> *</span><br>
-      <input type="number" name="parts" min="1" required>
-    </div>
-    <div>
-      <label>Maximum Performers (leave blank if N/A)</label><br>
-      <input type="number" name="max_perf" min="1">
-    </div>
-    <div><label for="inst">Instrumentation (if applicable)</label></div>
-    <div class="pill-container">
-      <template x-for="i in inst" :key="i.id">
-        <button type="button" class="pill-button" :class="{ 'inactive': !instIsSelected(i.id) }" x-text="i.name"
-          @click="addInst(i.id)"></button>
-      </template>
-      <input type="hidden" name="inst">
-    </div>
-    <div><label for="os">Operating System(s)</label><span> *</span></div>
-    <div class="pill-container">
-      <template x-for="o in os" :key="o.id">
-        <button type="button" class="pill-button" :class="{ 'inactive': !osIsSelected(o.id) }" x-text="o.name"
-          @click="addOs(o.id)"></button>
-      </template>
-      <input type="hidden" name="os">
-    </div>
-    <div><label for="software">Software</label><span> *</span></div>
-    <div class="pill-container">
-      <template x-for="s in software" :key="s.id">
-        <button type="button" class="pill-button" :class="{ 'inactive': !softwareIsSelected(s.id) }" x-text="s.name"
-          @click="addSoftware(s.id)"></button>
-      </template>
-      <input type="hidden" name="software">
-    </div>
-    <div><label for="hardware">Hardware (if applicable)</label></div>
-    <div class="pill-container">
-      <template x-for="h in hardware" :key="h.id">
-        <button type="button" class="pill-button" :class="{ 'inactive': !hardwareIsSelected(h.id) }" x-text="h.name"
-          @click="addHardware(h.id)"></button>
-      </template>
-      <input type="hidden" name="hardware">
-      <em>
-        <p>Assume laptops and/or personal mobile devices are standard.</p>
-      </em>
-    </div>
-    <div>
-      <label>Visuals</label><br>
-      <input type="checkbox" name="visuals">
-    </div>
-  </form>
-
-  <form x-show="currentForm === 'resource'" x-ref="resForm" @submit.prevent="submit($el)">
-    <div>
-      <label>Title</label><span> *</span><br>
-      <input type=" text" name="title" required>
-    </div>
-    <div>
-      <label>Description</label><span> *</span><br>
-      <textarea name="description" rows="10" cols="40" required></textarea>
-      <em>
-        <p>Provide a brief description. Full details should be included via link full text below.</p>
-      </em>
-    </div>
-    <div>
-      <label for="tags">Tags</label><span> *</span>
-      <div class="pill-container">
-        <template x-for="tag in tags" :key="tag.id">
-          <button type="button" class="pill-button" :class="{ 'inactive': !tagsIsSelected(tag.id) }" x-text="tag.name"
-            @click="addTags(tag.id); dirty = true;"></button>
-        </template>
-        <input type="hidden" name="tags">
+  <template x-if="currentForm === 'repertoire'">
+    <form x-ref="repForm" @submit.prevent="submit($event)">
+      <h3>General Information</h3>
+      <div class="form-group">
+        <label for="title">Title</label>
+        <input type="text" name="title" required>
       </div>
-    </div>
-    <div>
-      <label for="newTags">Create new tags if needed</label><span> (comma separated for multiple)</span><br>
-      <input type="text" name="newTags" placeholder="tag1, tag2, tag3, etc.">
-    </div>
-    <div>
-      <label for="resourceType">Resource Type</label><br>
-      <select @change="resType = $el.value">
-        <option value="link">Link to external site</option>
-        <option value="full">Submit full text</option>
+      <div class="form-group">
+        <label for="duration">Duration</label>
+        <input class="duration-input" type="text" name="duration" placeholder="m:ss" required>
+      </div>
+      <p class="detail">If variable, enter a typical duration and provide details in Notes.</p>
+      <div class="form-group">
+        <label for="composer">Composer First Name</label>
+        <input type="text" name="first_name" required>
+      </div>
+      <div class="form-group">
+        <label for="composer">Composer Last Name</label>
+        <input type="text" name="last_name" required>
+      </div>
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" name="email" required>
+      </div>
+      <div class="form-group">
+        <label>Link to Assets</label>
+        <input type="url" name="link" required>
+      </div>
+      <p class="detail">The Laptop Ensemble Exchange does not host files. The link you provide should direct
+        users to an external site containing all necessary materials (scores, files, etc.) for performing the selection.
+      </p>
+      <h3>Ensemble Information</h3>
+      <div class="form-group">
+        <label for="difficulty">Difficulty</label>
+        <select name="difficulty" required>
+          <option value="">- select -</option>
+          <option value="1">1 (Nov)</option>
+          <option value="2">2 (Int)</option>
+          <option value="3">3 (Adv)</option>
+        </select>
+      </div>
+      <ol class="detail">
+        <li>No notation reading skills required, minimal rehearsal.</li>
+        <li>Requires basic notation reading and/or rhythmic coordination, regular
+          rehearsal.
+        </li>
+        <li>Requires strong notation reading and/or rhythmic coordination, rigorous rehearsal.
+        </li>
+      </ol>
+      <div class="form-group">
+        <label for="parts">No. of Parts</label><br>
+        <input type="number" name="parts" min="1" required>
+      </div>
+      <div class="form-group">
+        <label>Maximum Performers (if applicable)</label>
+        <input type="number" name="max_perf" min="1">
+      </div>
+      <label for="inst">Instrumentation (if applicable)</label>
+      <select name="inst" multiple>
+        <template x-for="item in inst.items" :key="item.id">
+          <option :value="item.id" x-text="item.name"></option>
+        </template>
       </select>
-    </div>
-    <div x-show="resType === 'link'">
-      <label>Link</label><span> *</span><br>
-      <input type="url" name="link" placeholder="https://example.com">
-    </div>
-    <input type="text" name="full_text" hidden>
-  </form>
+      <p class="detail">Ctrl-click (Windows) or Command-click (Mac) to select multiple.</p>
+
+      <h3>Technical Information</h3>
+      <label for="os">Operating System(s)</label>
+      <select name="os" multiple required>
+        <template x-for="item in os.items" :key="item.id">
+          <option :value="item.id" x-text="item.name"></option>
+        </template>
+      </select>
+      <p class="detail">Ctrl-click (Windows) or Command-click (Mac) to select multiple.</p>
+
+      <label for="software">Software</label>
+      <select name="software" multiple required>
+        <template x-for="item in software.items" :key="item.id">
+          <option :value="item.id" x-text="item.name"></option>
+        </template>
+      </select>
+      <p class="detail">Ctrl-click (Windows) or Command-click (Mac) to select multiple.</p>
+
+      <label for="hardware">Hardware (if applicable)</label>
+      <select name="hardware" multiple>
+        <template x-for="item in hardware.items" :key="item.id">
+          <option :value="item.id" x-text="item.name"></option>
+        </template>
+      </select>
+      <p class="detail">Ctrl-click (Windows) or Command-click (Mac) to select multiple.</p>
+      <div class="form-group">
+        <label>Visuals</label>
+        <input type="checkbox" name="visuals">
+      </div>
+    </form>
+  </template>
+
+  <template x-if="currentForm === 'resource'">
+    <form x-show="currentForm === 'resource'" x-ref="resForm" @submit.prevent="submit($event)">
+      <div class="form-group">
+        <label>Title</label>
+        <input type="text" name="title" required>
+      </div>
+      <label>Description</label>
+      <textarea name="description" rows="4" required></textarea>
+      <p class="detail">Provide a brief catalog description. More detail should be included via link or full text below.
+      </p>
+      <label for="tags">Tags</label>
+      <select name="tags" multiple>
+        <template x-for="item in tags.items" :key="item.id">
+          <option :value="item.id" x-text="item.name"></option>
+        </template>
+      </select>
+      <p class="detail">Ctrl-click (Windows) or Command-click (Mac) to select multiple.</p>
+      <div class="form-group">
+        <label for="new_tags">New Tags</label>
+        <input type="text" name="new_tags" placeholder="tag1, tag2, tag3, etc.">
+      </div>
+      <p class="detail">Enter new tags as needed, comma separated for multiple.</p>
+      <div x-show="resType === 'link'" class="form-group">
+        <label>Link</label>
+        <input type="url" name="link" placeholder="https://example.com">
+      </div>
+      <input type="hidden" name="full_text">
+    </form>
+  </template>
 
   <div x-show="currentForm === 'repertoire' || resType === 'full'">
-    <label x-text="currentForm === 'repertoire' ? 'Notes' : 'Content'"></label><span> *</span><br>
+    <label x-text="currentForm === 'repertoire' ? 'Notes' : 'Content'"></label>
     <textarea x-ref="mdEditor"></textarea>
   </div>
 
-  <button class="big-button" type="button" x-ref="submitButton"
+  <button type="button" x-ref="submitButton"
     @click="currentForm === 'repertoire' ? $refs.repForm.requestSubmit() : $refs.resForm.requestSubmit()">Submit</button>
 
 </div>

@@ -1,98 +1,104 @@
 <div x-data="{
-  ...collectionManagement('resources'),
-  ...pillManagement('tags'),
-  get options() {
-    return {
-      expand: 'tags',
-      filter: this.filter,
-    }
-  },
+  resources: new CollectionManager('resources'),
+  tags: new AttributeManager('tags'),
+  expanded: false,
   dirty: false,
   applyFilter(e) {
-    const values = Object.fromEntries(new FormData(e.target))
-    const titleFilter = values.title ? `title ${values.titleOp} '${values.title}'` : '';
-    const tagsFilter = this.createTagsFilter();
+    const formData = new FormData(e.target);
+    const title = formData.get('title');
+    const titleOp = formData.get('title_op');
+    const titleFilter = title ? `title ${titleOp} '${title}'` : '';
+    const selectedTags = formData.getAll('tags');
+    const tagsFilter = this.tags.createFilterString(selectedTags);
     const filterString = titleFilter && tagsFilter ? `${titleFilter} && ${tagsFilter}` : titleFilter || tagsFilter;
-    this.setFilter(filterString);
+    this.resources.filter = filterString;
+    this.resources.fetchItems();
+    Alpine.store('toast').notify(`Filter applied.`);
     this.dirty = false;
   },
   singleFilter(tag) {
-    this.setFilter(this.setOneTags(tag.id));
+    this.resources.filter = `tags ~ '${tag.id}'`;
+    this.resources.fetchItems();
     $refs.filterForm.reset();
     this.expanded = true;
     $store.toast.notify(`Showing all resources tagged '${tag.name}'.`);
   },
   resetFilter() {
     this.dirty = false;
-    this.clearSelectedTags();
-    this.clearFilter();
+    this.resources.filter = '';
+    this.resources.fetchItems();
+    Alpine.store('toast').notify(`Filter reset.`);
     $refs.filterForm.reset();
   },
   init() {
-    this.fetchTags();
+    this.tags.fetchItems();
     if ($store.route.savedTag) {
-      this.singleFilter($store.route.savedTag)
+      this.singleFilter($store.route.savedTag);
       $store.route.savedTag = null;
-    } else this.fetchItems();
+    } else this.resources.fetchItems();
   }
- }">
+  }">
 
   <h2>Resources</h2>
 
   <div>
-    <button @click="expanded = !expanded"><span x-text="expanded ? '△' : '▽'"></span> Filter Options</button>
+    <button @click="expanded = !expanded"><span x-text="expanded ? '△' : '▽'"></span> Show/Hide Filter Options</button>
   </div>
 
-  <div x-cloak x-show="expanded" x-collapse>
+  <div x-cloak x-show="expanded" x-collapse class="drawer">
     <form @submit.prevent="applyFilter($event)" x-ref="filterForm">
-      <div>
+      <div class="form-group">
         <label for="title">Title</label>
-        <select name="titleOp" @change="if ($refs.title.value) dirty = true">
+        <select name="title_op" @change="if ($refs.filterForm.title.value) dirty = true">
           <option value="~">Contains</option>
           <option value="=">Equals</option>
         </select>
-        <input type="text" name="title" x-ref="title" @input="dirty = true">
+        <input type="text" name="title" @input="dirty = true">
       </div>
-      <div class="pill-container">
-        <label for="tags">Tags&nbsp;</label>
-        <select @change="setTagsOpComb($el.value)">
-          <option value="&&">All</option>
-          <option value="||">Any</option>
-          <option value="!~">Not</option>
-        </select>
-        &nbsp;
-        <template x-for="tag in tags" :key="tag.id">
-          <button type="button" class="pill-button" :class="{ 'inactive': !tagsIsSelected(tag.id) }" x-text="tag.name"
-            @click="addTags(tag.id); dirty = true;"></button>
+      <div class="form-group">
+        <label for="tags">Tags</label>
+        <div>
+          <select @change="tags.opComb = $el.value; dirty = true">
+            <option value="&&">All</option>
+            <option value="||">Any</option>
+            <option value="!~">Not</option>
+          </select>
+          <span>the following:</span>
+        </div>
+      </div>
+      <select name="tags" multiple @change="dirty = true">
+        <template x-for="item in tags.items" :key="item.id">
+          <option :value="item.id" x-text="item.name"></option>
         </template>
-      </div>
-      <button class="big-button" type="submit" :disabled="!dirty">Apply</button>
-      <button class="big-button" type="button" @click="resetFilter">Reset</button>
+      </select>
+      <p class="detail">Ctrl-click (Windows) or Command-click (Mac) to select multiple.</p>
+      <button type="submit" :disabled="!dirty">Apply</button>
+      <button type="button" @click="resetFilter">Reset</button>
     </form>
+    <hr>
   </div>
 
-  <hr>
-
-  <label>
-    Page:
-    <input type="number" min="1" :value="page" :max="totalPages" @change="setPaginate($el.value, perPage)"><span
-      x-text="` / ${totalPages}`"></span>
-  </label>
-
-  <hr>
-
-  <template x-for="item in items" :key="item.id">
+  <template x-for="item in resources.items" :key="item.id">
     <div>
       <h3><a :href="`?page=res_item&id=${item.id}`" x-text="item.title" @click.prevent="route($el.href)"></a></h3>
       <p x-text="item.description"></p>
-      <div class="pill-container">
-        <label for="tag-buttons">Tags&nbsp;</label>
-        <template x-for="tag in item.expand.tags" :key="tag.id">
-          <button class="pill-button" x-text="tag.name" @click="singleFilter(tag)"></button>
-        </template>
-      </div>
+      <label for="tag-buttons">Tags: </label>
+      <template x-for="(tag, i) in item.expand.tags" :key="tag.id">
+        <span>
+          <a x-text="tag.name" @click.prevent="singleFilter(tag)"></a>
+          <span x-show="i < item.expand.tags.length - 1">|</span>
+        </span>
+      </template>
       <hr>
     </div>
   </template>
+
+  <div class="form-group">
+    <div>
+      <label>Page:</label>
+      <input type="number" min="1" :value="resources.page" :max="resources.totalPages"
+        @change="resources.page = $el.value; resources.fetchItems()"><span x-text="` / ${resources.totalPages}`"></span>
+    </div>
+  </div>
 
 </div>

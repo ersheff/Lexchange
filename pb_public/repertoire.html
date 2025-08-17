@@ -1,200 +1,197 @@
 <div x-data="{
-  ...collectionManagement('repertoire'),
-  ...pillManagement('inst'),
-  ...pillManagement('os'),
-  ...pillManagement('software'),
-  ...pillManagement('hardware'),
-  get options() {
-    return {
-      sort: `${this.order}${this.sort}`,
-      filter: this.filter,
-      expand: 'inst,os,software,hardware',
-    }
-  },
+  repertoire: new CollectionManager('repertoire'),
+  inst: new AttributeManager('inst'),
+  os: new AttributeManager('os'),
+  software: new AttributeManager('software'),
+  hardware: new AttributeManager('hardware'),
+  filterExpanded: false,
   dirty: false,
+  viewExpanded: false,
+  columns: {
+  'title':  { label: 'Title', shortLabel: 'Title', show: true },
+  'duration': { label: 'Duration', shortLabel: 'Dur', show: true },
+  'last_name': { label: 'Composer', shortLabel: 'Comp', show: true },
+  'difficulty': { label: 'Difficulty', shortLabel: 'Diff', show: true },
+  'parts': { label: 'No. of Parts', shortLabel: 'Parts', show: true },
+  'max_perf': { label: 'Max Performers', shortLabel: 'Max', show: true },
+  'inst': { label: 'Instrumentation', shortLabel: 'Inst', show: true, expanded: false },
+  'os': { label: 'OS', shortLabel: 'OS', show: false },
+  'software': { label: 'Software', shortLabel: 'SW', show: false },
+  'hardware': { label: 'Hardware', shortLabel: 'HW', show: false, expanded: false },
+  'visuals': { label: 'Visuals', shortLabel: 'Vis', show: true }
+  },
   applyFilter(e) {
-    const values = Object.fromEntries(new FormData(e.target))
+    const formData = new FormData(e.target);
+    const values = Object.fromEntries(formData);
     const filters = [];
-    if (values.title) {
-      filters.push(`title ${values.titleOp} '${values.title}'`);
-    }
-    if (values.durationMin) {
-      filters.push(`duration >= ${colonToDec(values.durationMin)}`);
-    }
-    if (values.durationMax) {
-      filters.push(`duration <= ${colonToDec(values.durationMax)}`);
-    }
-    if (values.last_name) {
-      filters.push(`last_name ~ '${values.last_name}'`);
-    }
-    if (values.first_name) {
-      filters.push(`first_name ~ '${values.first_name}'`);
-    }
-    if (values.difficulty) {
-      filters.push(`difficulty ${values.difOp} '${values.difficulty}'`);
-    }
-    if (values.partsMin) {
-      filters.push(`parts >= ${values.partsMin}`);
-    }
-    if (values.partsMax) {
-      filters.push(`parts <= ${values.partsMax}`);
-    }
-    if (values.max_perf) {
-      filters.push(`max_perf >= ${values.max_perf}`);
-    }
-    if (this.selectedInst.size > 0) {
-      filters.push(this.createInstFilter());
-    }
-    if (this.selectedOs.size > 0) {
-      filters.push(this.createOsFilter());
-    }
-    if (this.selectedSoftware.size > 0) {
-      filters.push(this.createSoftwareFilter());
-    }
-    if (this.selectedHardware.size > 0) {
-      filters.push(this.createHardwareFilter());
-    }
-    if (values.visuals) {
-      filters.push(`visuals = ${values.visuals}`);
-    }
+    if (values.title) filters.push(`title ${values.title_op} '${values.title}'`);
+    if (values.dur_min) filters.push(`duration >= ${colonToDec(values.dur_min)}`);
+    if (values.dur_max) filters.push(`duration <= ${colonToDec(values.dur_max)}`);
+    if (values.last_name) filters.push(`last_name ~ '${values.last_name}'`);
+    if (values.first_name) filters.push(`first_name ~ '${values.first_name}'`);
+    if (values.difficulty) filters.push(`difficulty ${values.diff_op} '${values.difficulty}'`);
+    if (values.parts_min) filters.push(`parts >= ${values.parts_min}`);
+    if (values.parts_max) filters.push(`parts <= ${values.parts_max}`);
+    if (values.max_perf) filters.push(`max_perf >= ${values.max_perf}`);
+    const selectedInst = formData.getAll('inst');
+    if (selectedInst.length > 0) filters.push(this.inst.createFilterString(selectedInst));
+    const selectedOs = formData.getAll('os');
+    if (selectedOs.length > 0) filters.push(this.os.createFilterString(selectedOs));
+    const selectedSoftware = formData.getAll('software');
+    if (selectedSoftware.length > 0) filters.push(this.software.createFilterString(selectedSoftware));
+    const selectedHardware = formData.getAll('hardware');
+    if (selectedHardware.length > 0) filters.push(this.hardware.createFilterString(selectedHardware));
+    if (values.visuals) filters.push(`visuals = ${values.visuals}`);
     const filterString = filters.join(' && ');
-    this.setFilter(filterString);
+    this.repertoire.filter = filterString;
+    this.repertoire.fetchItems();
+    Alpine.store('toast').notify(`Filter applied.`);
     this.dirty = false;
   },
   resetFilter() {
     this.dirty = false;
-    this.clearSelectedInst();
-    this.clearSelectedOs();
-    this.clearSelectedSoftware();
-    this.clearSelectedHardware();
-    this.clearFilter();
+    this.repertoire.filter = '';
+    this.repertoire.fetchItems();
+    Alpine.store('toast').notify(`Filter reset.`);
     $refs.filterForm.reset();
   },
-  columns: {
-    'title':  { label: 'Title', shortLabel: 'Title', show: true },
-    'duration': { label: 'Duration', shortLabel: 'Dur', show: true },
-    'last_name': { label: 'Composer', shortLabel: 'Comp', show: true },
-    'difficulty': { label: 'Difficulty', shortLabel: 'Diff', show: true },
-    'parts': { label: 'No. of Parts', shortLabel: 'Parts', show: true },
-    'max_perf': { label: 'Max Performers', shortLabel: 'Max', show: true },
-    'inst': { label: 'Instrumentation', shortLabel: 'Inst', show: true, expanded: false },
-    'os': { label: 'OS', shortLabel: 'OS', show: false },
-    'software': { label: 'Software', shortLabel: 'SW', show: false },
-    'hardware': { label: 'Hardware', shortLabel: 'HW', show: false, expanded: false },
-    'visuals': { label: 'Visuals', shortLabel: 'Vis', show: true }
-  },
   init() {
-    this.fetchItems();
-    this.fetchInst();
-    this.fetchOs();
-    this.fetchSoftware();
-    this.fetchHardware();
-  },
- }">
+    this.repertoire.fetchItems();
+    this.inst.fetchItems();
+    this.os.fetchItems();
+    this.software.fetchItems();
+    this.hardware.fetchItems();
+  }
+}">
 
   <h2>Repertoire</h2>
 
   <div>
-    <button @click="expanded = !expanded"><span x-text="expanded ? '△' : '▽'"></span> Filter Options</button>
+    <button @click="filterExpanded = !filterExpanded"><span x-text="filterExpanded ? '△' : '▽'"></span> Show/Hide Filter
+      Options</button>
   </div>
 
-  <div x-cloak x-show="expanded" x-collapse>
+  <div x-cloak x-show="filterExpanded" x-collapse class="drawer">
     <form @submit.prevent="applyFilter($event)" x-ref="filterForm">
-      <div>
+      <div class="form-group">
         <label for="title">Title</label>
-        <select name="titleOp" @change="dirty = true">
+        <select name="title_op" @change="if ($refs.filterForm.title.value) dirty = true">
           <option value="~">Contains</option>
           <option value="=">Equals</option>
         </select>
         <input type="text" name="title" @input="dirty = true">
       </div>
-      <div>
-        <label for="duration">Duration</label>
-        <input class="duration-input" type="text" name="durationMin" placeholder="Min" @input="dirty = true"
-          title="Enter as mm:ss or decimal value.">
-        <input class="duration-input" type="text" name="durationMax" placeholder="Max" @input="dirty = true"
-          title="Enter as mm:ss or decimal value.">
+      <div class="form-group">
+        <label for="duration">Duration Minimum</label>
+        <input class="duration-input" type="text" name="dur_min" placeholder="m:ss" @input="dirty = true">
       </div>
-      <div>
-        <label for="composer">Composer</label>
-        <input type="text" name="last_name" placeholder="Last Name" @input="dirty = true">
-        <input type="text" name="first_name" placeholder="First Name" @input="dirty = true">
+      <div class="form-group">
+        <label for="duration">Duration Maximum</label>
+        <input class="duration-input" type="text" name="dur_max" placeholder="m:ss" @input="dirty = true">
       </div>
-      <div>
+      <div class="form-group">
+        <label for="composer">Composer First Name</label>
+        <input type="text" name="first_name" @input="dirty = true">
+      </div>
+      <div class="form-group">
+        <label for="composer">Composer Last Name</label>
+        <input type="text" name="last_name" @input="dirty = true">
+      </div>
+      <div class="form-group">
         <label for="difficulty">Difficulty</label>
-        <select name="difOp" @change="dirty = true">
-          <option value="=">Is</option>
-          <option value="!=">Is Not</option>
-        </select>
-        <select name="difficulty" @change="dirty = true">
-          <option value="">Any</option>
-          <option value="1">1 (Novice)</option>
-          <option value="2">2 (Intermediate)</option>
-          <option value="3">3 (Advanced)</option>
-        </select>
+        <div>
+          <select name="diff_op" @change="if ($refs.filterForm.difficulty.value) dirty = true">
+            <option value="=">Is</option>
+            <option value="!=">Is Not</option>
+          </select>
+          <select name="difficulty" @change="dirty = true">
+            <option value="">Any</option>
+            <option value="1">1 (Nov)</option>
+            <option value="2">2 (Int)</option>
+            <option value="3">3 (Adv)</option>
+          </select>
+        </div>
       </div>
-      <div>
+      <div class="form-group">
         <label for="parts">No. of Parts</label>
-        <input type="number" name="partsMin" placeholder="Min" min="1" @input="dirty = true">
-        <input type="number" name="partsMax" placeholder="Max" min="1" @input="dirty = true">
+        <div>
+          <input type="number" name="parts_min" placeholder="Min" min="1" @input="dirty = true">
+          <input type="number" name="parts_max" placeholder="Max" min="1" @input="dirty = true">
+        </div>
       </div>
-      <div>
+      <div class="form-group">
         <label for="max_perf">Maximum Performers</label>
         <input type="number" name="max_perf" placeholder="Min" min="1" @input="dirty = true">
       </div>
-      <div class="pill-container">
-        <label for="inst">Instrumentation&nbsp;</label>
-        <select @change="setInstOpComb($el.value)">
-          <option value="&&">All</option>
-          <option value="||">Any</option>
-          <option value="!~">Not</option>
-        </select>
-        &nbsp;
-        <template x-for="i in inst" :key="i.id">
-          <button type="button" class="pill-button" :class="{ 'inactive': !instIsSelected(i.id) }" x-text="i.name"
-            @click="addInst(i.id); dirty = true;"></button>
-        </template>
+      <div class="form-group">
+        <label for="inst">Instrumentation</label>
+        <div>
+          <select @change="inst.opComb = $el.value; dirty = true">
+            <option value="&&">All</option>
+            <option value="||">Any</option>
+            <option value="!~">Not</option>
+          </select>
+          <span>the following:</span>
+        </div>
       </div>
-      <div class="pill-container">
-        <label for="os">Operating System(s)&nbsp;</label>
-        <select @change="setOsOpComb($el.value)">
-          <option value="&&">All</option>
-          <option value="||">Any</option>
-          <option value="!~">Not</option>
-        </select>
-        &nbsp;
-        <template x-for="o in os" :key="o.id">
-          <button type="button" class="pill-button" :class="{ 'inactive': !osIsSelected(o.id) }" x-text="o.name"
-            @click="addOs(o.id); dirty = true;"></button>
+      <select name="inst" multiple @change="dirty = true">
+        <template x-for="item in inst.items" :key="item.id">
+          <option :value="item.id" x-text="item.name"></option>
         </template>
+      </select>
+      <p class="detail">Ctrl-click (Windows) or Command-click (Mac) to select multiple.</p>
+      <div class="form-group">
+        <label for="os">Operating System(s)</label>
+        <div>
+          <select @change="os.opComb = $el.value; dirty = true">
+            <option value="&&">All</option>
+            <option value="||">Any</option>
+            <option value="!~">Not</option>
+          </select>
+          <span>the following:</span>
+        </div>
       </div>
-      <div class="pill-container">
-        <label for="software">Software&nbsp;</label>
-        <select @change="setSoftwareOpComb($el.value)">
-          <option value="&&">All</option>
-          <option value="||">Any</option>
-          <option value="!~">Not</option>
-        </select>
-        &nbsp;
-        <template x-for="s in software" :key="s.id">
-          <button type="button" class="pill-button" :class="{ 'inactive': !softwareIsSelected(s.id) }" x-text="s.name"
-            @click="addSoftware(s.id); dirty = true;"></button>
+      <select name="os" multiple @change="dirty = true">
+        <template x-for="item in os.items" :key="item.id">
+          <option :value="item.id" x-text="item.name"></option>
         </template>
+      </select>
+      <p class="detail">Ctrl-click (Windows) or Command-click (Mac) to select multiple.</p>
+      <div class="form-group">
+        <label for="software">Software</label>
+        <div>
+          <select @change="software.opComb = $el.value; dirty = true">
+            <option value="&&">All</option>
+            <option value="||">Any</option>
+            <option value="!~">Not</option>
+          </select>
+          <span>the following:</span>
+        </div>
       </div>
-      <div class="pill-container">
-        <label for="hardware">Hardware&nbsp;</label>
-        <select @change="setHardwareOpComb($el.value)">
-          <option value="&&">All</option>
-          <option value="||">Any</option>
-          <option value="!~">Not</option>
-        </select>
-        &nbsp;
-        <template x-for="h in hardware" :key="h.id">
-          <button type="button" class="pill-button" :class="{ 'inactive': !hardwareIsSelected(h.id) }" x-text="h.name"
-            @click="addHardware(h.id); dirty = true;"></button>
+      <select name="software" multiple @change="dirty = true">
+        <template x-for="item in software.items" :key="item.id">
+          <option :value="item.id" x-text="item.name"></option>
         </template>
+      </select>
+      <p class="detail">Ctrl-click (Windows) or Command-click (Mac) to select multiple.</p>
+      <div class="form-group">
+        <label for="hardware">Hardware</label>
+        <div>
+          <select @change="hardware.opComb = $el.value; dirty = true">
+            <option value="&&">All</option>
+            <option value="||">Any</option>
+            <option value="!~">Not</option>
+          </select>
+          <span>the following:</span>
+        </div>
       </div>
-      <div>
+      <select name="hardware" multiple @change="dirty = true">
+        <template x-for="item in hardware.items" :key="item.id">
+          <option :value="item.id" x-text="item.name"></option>
+        </template>
+      </select>
+      <p class="detail">Ctrl-click (Windows) or Command-click (Mac) to select multiple.</p>
+      <div class="form-group">
         <label for="visuals">Visuals</label>
         <select name="visuals" @change="dirty = true">
           <option value="">Any</option>
@@ -202,97 +199,112 @@
           <option value="false">No</option>
         </select>
       </div>
-      <button class="big-button" type="submit" :disabled="!dirty">Apply</button>
-      <button class="big-button" type="button" @click="resetFilter">Reset</button>
+      <div class="form-group">
+        <div>
+          <button type="submit" :disabled="!dirty">Apply Filter</button>
+          <button type="button" @click="resetFilter">Reset Filter</button>
+        </div>
+      </div>
     </form>
+    <hr>
   </div>
 
-  <hr>
 
-  <form>
-    <div class="pill-container">
-      <label for="columns">Columns&nbsp;</label>
-      <template x-for="[key, column] in Object.entries(columns)" :key="key">
-        <button type="button" class="pill-button" :class="{ 'inactive': !column.show }" x-text="column.label"
-          @click="columns[key].show = !columns[key].show"></button>
-      </template>
-    </div>
+  <div>
+    <button @click="viewExpanded = !viewExpanded"><span x-text="viewExpanded ? '△' : '▽'"></span>
+      Show/Hide View Options</button>
+  </div>
 
-    <div class="pill-container">
-      <label for="columns">Expanded View&nbsp;</label>
-      <template x-for="[key, column] in Object.entries(columns)" :key="key">
-        <template x-if="'expanded' in column && columns[key].show">
-          <button type="button" class="pill-button" :class="{ 'inactive': !column.expanded }" x-text="column.label"
-            @click="columns[key].expanded = !columns[key].expanded"></button>
+  <div x-cloak x-show="viewExpanded" x-collapse class="drawer">
+    <form>
+      <div>
+        <template x-for="[key, column] in Object.entries(columns)" :key="key">
+          <template x-if="key !== 'title'">
+            <div>
+              <label x-text="column.label"></label>
+              <input type="checkbox" x-model="column.show" />
+              <template x-if="'expanded' in column">
+                <span>
+                  <label for="">Expanded View</label>
+                  <input type="checkbox" x-model="column.expanded" :disabled="!column.show">
+                </span>
+              </template>
+            </div>
+          </template>
         </template>
-      </template>
-    </div>
+      </div>
+    </form>
+    <hr>
 
-    <label>
-      Page
-      <input type="number" min="1" :value="page" :max="totalPages" @change="setPaginate($el.value, perPage)"><span
-        x-text="` / ${totalPages}`"></span>
-    </label>
-  </form>
-
-  <hr>
+  </div>
 
   <style>
+    .table-scroll {
+      overflow-x: scroll;
+    }
+
     table {
-      border-collapse: collapse;
-      width: 100%;
+      table-layout: auto;
 
       th {
         white-space: nowrap;
+
+        &:hover {
+          cursor: pointer;
+        }
       }
 
-      button {
-        width: 100%;
-        text-align: left;
-      }
-
-      td {
-        border: 1px solid #ccc;
-        padding: 2px 4px;
+      tr:not(:last-child) {
+        border-bottom: 1px solid var(--border);
       }
     }
   </style>
 
-  <table>
-    <thead>
-      <template x-for="[key, column] in Object.entries(columns)" :key="key">
-        <th x-show="column.show">
-          <button x-text="`${column.shortLabel} ${sort === key ? (order === '+' ? '▲' : '▼') : '△'}`"
-            @click="setSort(key);"></button>
-        </th>
-      </template>
-    </thead>
-    <template x-for="item in items" :key="item.id">
-      <tr>
-        <td x-show="columns['title'].show">
-          <a :href="`?page=rep_item&id=${item.id}`" x-text="item.title" @click.prevent="route($el.href)"></a>
-        </td>
-        <td x-show="columns['duration'].show" x-text="decToColon(item.duration)"></td>
-        <td x-show="columns['last_name'].show" x-text="`${item.last_name}, ${item.first_name}`"></td>
-        <td x-show="columns['difficulty'].show" x-text="
-          item.difficulty === '1' ? '1 (Nov)' :
-          item.difficulty === '2' ? '2 (Int)' :
-          item.difficulty === '3'? '3 (Adv)' : '' "></td>
-        <td x-show="columns['parts'].show" x-text="item.parts"></td>
-        <td x-show="columns['max_perf'].show" x-text="item.max_perf === 999 ? 'any' : item.max_perf"></td>
-        <td x-show="columns['inst'].show" x-text="item.inst.length ?
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <template x-for="[key, column] in Object.entries(columns)" :key="key">
+          <th x-show="column.show"
+            x-text="`${column.shortLabel} ${repertoire.sort === key ? (repertoire.order === '+' ? '▲' : '▼') : '△'}`"
+            @click="repertoire.sort = key; repertoire.fetchItems()">
+          </th>
+        </template>
+      </thead>
+      <template x-for="item in repertoire.items" :key="item.id">
+        <tr>
+          <td x-show="columns['title'].show">
+            <a :href="`?page=rep_item&id=${item.id}`" x-text="item.title" @click.prevent="route($el.href)"></a>
+          </td>
+          <td x-show="columns['duration'].show" x-text="decToColon(item.duration)"></td>
+          <td x-show="columns['last_name'].show" x-text="`${item.last_name}, ${item.first_name}`"></td>
+          <td x-show="columns['difficulty'].show" x-text="item.difficulty"></td>
+          <td x-show="columns['parts'].show" x-text="item.parts"></td>
+          <td x-show="columns['max_perf'].show" x-text="item.max_perf === 999 ? 'any' : item.max_perf"></td>
+          <td x-show="columns['inst'].show" x-text="item.inst.length ?
           (columns['inst'].expanded ?
           item.expand.inst.map(i => i.name).join(', ') : '✓') : ''"></td>
-        <td x-show="columns['os'].show" x-text="item.os.length ?
+          <td x-show="columns['os'].show" x-text="item.os.length ?
           item.expand.os.map(i => i.name).join(', ') : ''"></td>
-        <td x-show="columns['software'].show" x-text="item.software.length ?
+          <td x-show="columns['software'].show" x-text="item.software.length ?
           item.expand.software.map(i => i.name).join(', ') : ''"></td>
-        <td x-show="columns['hardware'].show" x-text="item.hardware.length ?
+          <td x-show="columns['hardware'].show" x-text="item.hardware.length ?
           (columns['hardware'].expanded ?
           item.expand.hardware.map(i => i.name).join(', ') : '✓') : ''"></td>
-        <td x-show="columns['visuals'].show" x-text="item.visuals ? '✓' : ''"></td>
-      </tr>
-    </template>
-  </table>
+          <td x-show="columns['visuals'].show" x-text="item.visuals ? '✓' : ''"></td>
+        </tr>
+      </template>
+    </table>
+  </div>
+
+  <hr>
+
+  <div class="form-group">
+    <div>
+      <label>Page</label>
+      <input type="number" min="1" :value="repertoire.page" :max="repertoire.totalPages"
+        @change="repertoire.page = $el.value; repertoire.fetchItems()">
+      <span x-text="` / ${repertoire.totalPages}`"></span>
+    </div>
+  </div>
 
 </div>

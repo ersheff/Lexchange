@@ -1,25 +1,75 @@
 <div x-data="{
-  ...initItemPage(),
+  res: new ItemPage('resources'),
   tagRoute(tag) {
     $store.route.savedTag = tag;
     route('?page=resources');
-  } }" x-init="fetchItem('resources')">
-  <template x-if="item">
+  },
+  async flagItem(e) {
+    const values = Object.fromEntries(new FormData(e.target));
+    try {
+      await pb.collection('resources').update(this.res.item.id, values);
+      Alpine.store('toast').notify(`${this.res.item.title} flagged.`);
+      $refs.modal.close();
+      this.res.fetchItem();
+    } catch (err) {
+      console.error(err);
+      Alpine.store('toast').notify(`Error flagging '${this.res.item.title}'.`);
+    }
+    }
+  }" x-init="res.fetchItem()">
+
+  <template x-if="res.item">
     <div>
-      <h2 x-text="item.title"></h2>
-      <p x-text="item.description"></p>
-      <div class="pill-container">
-        <label for="tag-buttons">Tags&nbsp;</label>
-        <template x-for="tag in item.expand.tags" :key="tag.id">
-          <button class="pill-button" x-text="tag.name" @click="tagRoute(tag)"></button>
-        </template>
-      </div>
-      <template x-if="item.link">
-        <p><a :href="item.link">Website</a></p>
+      <h2 x-text="res.item.title"></h2>
+      <template x-if="!res.item.flag">
+        <div>
+          <em>
+            <p>If you discover any errors with the information or resources below, please flag the item for review.
+            </p>
+          </em>
+          <button @click="$refs.modal.showModal()">Flag</button>
+        </div>
       </template>
-      <template x-if="item.full_text">
-        <p x-html="marked.parse(item.full_text)"></a>
+      <template x-if="res.item.flag">
+        <em>
+          <p>Note: This item has been flagged for review, which means there may be errors in the information or
+            resources below.</p>
+        </em>
+      </template>
+      <h3>Tags</h3>
+      <template x-for="(tag, i) in res.item.expand.tags" :key="tag.id">
+        <span>
+          <a x-text="tag.name" @click.prevent="tagRoute(tag)"></a>
+          <span x-show="i < res.item.expand.tags.length - 1">|</span>
+        </span>
+      </template>
+      <template x-if="res.item.link">
+        <div>
+          <h3>Description</h3>
+          <p x-text="res.item.description"></p>
+        </div>
+      </template>
+      <template x-if="res.item.link">
+        <div>
+          <h3>Website</h3>
+          <a :href="res.item.link">Link</a>
+        </div>
+      </template>
+      <template x-if="res.item.full_text">
+        <div>
+          <hr>
+          <div x-html="marked.parse(res.item.full_text)"></div>
+        </div>
       </template>
     </div>
   </template>
+
+  <dialog x-ref="modal">
+    <form @submit.prevent="flagItem($event)">
+      <p>Pourquoi?</p>
+      <textarea name="flag"></textarea>
+      <button @click.prevent="$refs.modal.close()">Cancel</button>
+      <button type="submit">Submit</button>
+    </form>
+  </dialog>
 </div>

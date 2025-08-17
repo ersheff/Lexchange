@@ -1,47 +1,103 @@
-<div x-data="{ ...initItemPage() }" x-init="fetchItem('repertoire')">
-  <template x-if="item">
+<div x-data="{
+  rep: new ItemPage('repertoire'),
+  async flagItem(e) {
+    const values = Object.fromEntries(new FormData(e.target));
+    try {
+      await pb.collection('repertoire').update(this.rep.item.id, values);
+      Alpine.store('toast').notify(`${this.rep.item.title} flagged.`);
+      $refs.modal.close();
+      this.rep.fetchItem();
+    } catch (err) {
+      console.error(err);
+      Alpine.store('toast').notify(`Error flagging '${this.rep.item.title}'.`);
+    }
+  } }" x-init="rep.fetchItem()">
+  <template x-if="rep.item">
     <div>
-      <h2 x-text="item.title"></h2>
-      <p x-text="`Duration: ${decToColon(item.duration)}`"></p>
-      <p x-text="`Composer: ${item.first_name} ${item.last_name}`"></p>
-      <p x-text="`Email: ${item.email}`"></p>
-      <p><a :href="item.link">Website</a></p>
+      <h2 x-text="rep.item.title"></h2>
+
+      <template x-if="!rep.item.flag">
+        <div>
+          <em>
+            <p>If you discover any errors with the information or resources below, please flag the item for review.
+            </p>
+          </em>
+          <button @click="$refs.modal.showModal()">Flag</button>
+        </div>
+      </template>
+      <template x-if="rep.item.flag">
+        <em>
+          <p>Note: This item has been flagged for review, which means there may be errors in the information or
+            resources below.</p>
+        </em>
+      </template>
+
+      <h3>General Information</h3>
+      <h4>Duration</h4>
+      <p x-text="decToColon(rep.item.duration)"></p>
+      <h4>Composer</h4>
+      <p x-text="`${rep.item.first_name} ${rep.item.last_name}`"></p>
+      <h4>Email</h4>
+      <p x-text="rep.item.email"></p>
+      <h4>Website</h4>
+      <p><a :href="rep.item.link">Link</a></p>
+
+      <hr>
+
       <h3>Ensemble Information</h3>
+      <h4>Difficulty</h4>
       <p x-text="
-      `Difficulty: ${
-          item.difficulty === '1' ? '1 (Novice)' :
-          item.difficulty === '2' ? '2 (Intermediate)' :
-          item.difficulty === '3' ? '3 (Advanced)' : '' }`"></p>
-      <p x-text="`Parts: ${item.parts}`"></p>
-      <p x-text="`Maximum performers: ${item.max_perf === 999 ? 'any' : item.max_perf}`"></p>
-      <p>Instrumentation:</p>
+          rep.item.difficulty === '1' ? '1 (Novice)' :
+          rep.item.difficulty === '2' ? '2 (Intermediate)' :
+          rep.item.difficulty === '3' ? '3 (Advanced)' : '' "></p>
+      <h4>parts</h4>
+      <p x-text="rep.item.parts"></p>
+      <h4>Maximum Performers</h4>
+      <p x-text="rep.item.max_perf === 999 ? 'any' : rep.item.max_perf"></p>
+      <h4>Instrumentation</h4>
       <ul>
-        <template x-for="inst in item.expand.inst" :key="inst.id">
+        <template x-for="inst in rep.item.expand.inst" :key="inst.id">
           <li x-text="inst.name"></li>
         </template>
       </ul>
+
+      <hr>
+
       <h3>Technical Information</h3>
-      <p>Operating systems:</p>
+      <h4>Operating Systems</h4>
       <ul>
-        <template x-for="os in item.expand.os" :key="os.id">
+        <template x-for="os in rep.item.expand.os" :key="os.id">
           <li x-text="os.name"></li>
         </template>
       </ul>
-      <p>Software:</p>
+      <h4>Software</h4>
       <ul>
-        <template x-for="software in item.expand.software" :key="software.id">
+        <template x-for="software in rep.item.expand.software" :key="software.id">
           <li x-text="software.name"></li>
         </template>
       </ul>
-      <p>Additional hardware:</p>
+      <h4>Additional hardware:</h4>
       <ul>
-        <template x-for="hardware in item.expand.hardware" :key="hardware.id">
+        <template x-for="hardware in rep.item.expand.hardware" :key="hardware.id">
           <li x-text="hardware.name"></li>
         </template>
       </ul>
-      <p x-text="`Visuals: ${item.visuals === true ? 'Yes' : 'No'}`"></p>
+      <h4>Visuals</h4>
+      <p x-text="rep.item.visuals === true ? 'Yes' : 'No'"></p>
+
+      <hr>
+
       <h3>Notes</h3>
-      <p x-html="marked.parse(item.notes)"></p>
+      <p x-html="marked.parse(rep.item.notes)"></p>
     </div>
   </template>
+
+  <dialog x-ref="modal">
+    <form @submit.prevent="flagItem($event)">
+      <p>Pourquoi?</p>
+      <textarea name="flag"></textarea>
+      <button @click.prevent="$refs.modal.close()">Cancel</button>
+      <button type="submit">Submit</button>
+    </form>
+  </dialog>
 </div>
