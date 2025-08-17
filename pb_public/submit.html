@@ -63,6 +63,7 @@
           delete values.link;
           values.full_text = this.easyMDE.value();
         }
+        values.created_by = pb.authStore.model.id;
         await createItem('resources', values);
       } 
     } catch(err) {
