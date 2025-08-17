@@ -7,3 +7,5 @@ Anyone can browse the collection, but an account is required to submit new conte
 The site uses [PocketBase](https://pocketbase.io) for database and user management, with a custom front end built using [Alpine.js](https://alpinejs.dev) and [Water.css](https://watercss.kognise.dev). [EasyMDE](https://github.com/Ionaru/easy-markdown-editor) and [Marked](https://github.com/markedjs/marked) provide Markdown editing and viewing for user-submitted content.
 
 Hosted on [Fly.io](https://fly.io).
+
+[Laptop Ensemble Exchange](https://lexchange.fly.dev)
