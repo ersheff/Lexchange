@@ -21,6 +21,7 @@
     $refs.submitButton.disabled = true;
     const formData = new FormData(e.target);
     const values = Object.fromEntries(formData);
+    values.created_by = pb.authStore.model.id;
     try {
       if (this.currentForm === 'repertoire') {
         const selectedInst = formData.getAll('inst');
@@ -63,7 +64,6 @@
           delete values.link;
           values.full_text = this.easyMDE.value();
         }
-        values.created_by = pb.authStore.model.id;
         await createItem('resources', values);
       } 
     } catch(err) {
