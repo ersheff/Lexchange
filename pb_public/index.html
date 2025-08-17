@@ -13,8 +13,8 @@
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <script src="pocketbase.umd.js"></script>
   <script>
-    // const pb = new PocketBase("https://lexchange.fly.dev");
-    const pb = new PocketBase("http://127.0.0.1:8090");
+    const pb = new PocketBase("https://lexchange.fly.dev");
+    // const pb = new PocketBase("http://127.0.0.1:8090");
 
     pb.authStore.onChange(() => {
       Alpine.store('auth').update();
